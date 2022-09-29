@@ -35,6 +35,12 @@ window.onload = function () {
     eventDispatcher.addListener("16", function (packet) {
         ta.value = ta.value + "\n" + "群消息: " + JSON.stringify(packet);
     });
+
+    eventDispatcher.addListener("18", function (packet) {
+        console.log("心跳消息: " + JSON.stringify(packet));
+        // 心跳检测
+        heartCheck.start();
+    });
 };
 
 // 如果浏览器支持WebSocket
@@ -58,6 +64,8 @@ if (window.WebSocket) {
     // 连接建立
     socket.onopen = function (event) {
         ta.value = "连接建立 " + event;
+        // 心跳检测
+        heartCheck.start();
     };
 
     // 连接关闭
@@ -252,4 +260,29 @@ function sendToGroup(toGroupId, message) {
         command: 15
     };
     send(packet);
+}
+
+// 心跳检测
+var heartCheck = {
+    timeout: 10000, //每隔10秒发送心跳
+    severTimeout: 5000, //服务端超时时间
+    timeoutObj: null,
+    serverTimeoutObj: null,
+    start: function(){
+        var _this = this;
+        this.timeoutObj && clearTimeout(this.timeoutObj);
+        this.serverTimeoutObj && clearTimeout(this.serverTimeoutObj);
+        this.timeoutObj = setTimeout(function(){
+            //这里发送一个心跳，后端收到后，返回一个心跳消息，
+            let heartPacket = {
+                version: 1,
+                command: 17
+            };
+            send(heartPacket);
+            //计算答复的超时时间
+            _this.serverTimeoutObj = setTimeout(function() {
+                socket.close();
+            }, _this.severTimeout);
+        }, this.timeout)
+    }
 }
